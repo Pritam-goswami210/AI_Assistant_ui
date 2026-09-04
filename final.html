@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI Core Selector - J.A.R.V.I.S. | F.R.I.D.A.Y. | U.L.T.R.O.N.</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <style>
+        :root {
+            --primary: #ffb700;
+            --primary-glow: rgba(255, 183, 0, 0.4);
+            --bg-center: #0f1722;
+            --font-family: 'Segoe UI', monospace, sans-serif;
+        }
+
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: radial-gradient(circle at 50% 50%, var(--bg-center) 0%, #000000 100%);
+            background-size: 200% 200%;
+            animation: bgShift 10s ease-in-out infinite alternate;
+            overflow: hidden;
+            font-family: var(--font-family);
+            color: #fff;
+            user-select: none;
+            transition: background 0.8s ease;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        @keyframes bgShift {
+            0% { background-position: 50% 50%; }
+            100% { background-position: 50% 30%; }
+        }
+
+        #canvas-container { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1; 
+        }
+
+        #selector-bar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 10px;
+            border: 1px solid var(--primary);
+            border-radius: 30px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 0 25px var(--primary-glow);
+            transition: border-color 0.5s, box-shadow 0.5s;
+            max-width: 90vw;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .persona-card {
+            padding: 8px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            color: #aaa;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            flex-shrink: 0;
+        }
+
+        .persona-card:hover {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .persona-card.active {
+            color: #000;
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        #telemetry-panel {
+            position: fixed;
+            top: 75px;
+            left: 15px;
+            z-index: 10;
+            font-size: 10px;
+            letter-spacing: 1.2px;
+            color: var(--primary);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 14px;
+            border-left: 2px solid var(--primary);
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: border-color 0.5s, color 0.5s;
+        }
+
+        #ui-layer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            width: 90vw;
+            max-width: 420px;
+        }
+
+        #eq-canvas {
+            width: 100%;
+            max-width: 380px;
+            height: 28px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        #input-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 14px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid var(--primary);
+            border-radius: 12px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 0 30px var(--primary-glow);
+            transition: border-color 0.5s, box-shadow 0.5s;
+        }
+
+        #text-input {
+            background: transparent;
+            border: none;
+            color: var(--primary);
+            font-size: 13px;
+            width: 100%;
+            outline: none;
+            letter-spacing: 1px;
+            transition: color 0.5s;
+        }
+
+        #text-input::placeholder { color: var(--primary); opacity: 0.5; transition: color 0.5s; }
+
+        #mic-btn {
+            width: 36px; 
+            height: 36px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            border: 1px solid var(--primary);
+            background: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            transition: all 0.4s;
+        }
+
+        #mic-btn:hover { background: var(--primary); transform: scale(1.05); }
+        #mic-btn:hover svg { fill: #000; }
+        #mic-btn svg { width: 16px; height: 16px; fill: var(--primary); transition: fill 0.5s; }
+
+        #status-text {
+            color: var(--primary);
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--primary-glow);
+            transition: color 0.5s;
+            text-align: center;
+        }
+
+        .hud-corner {
+            position: fixed; 
+            width: 25px; 
+            height: 25px;
+            z-index: 5; 
+            pointer-events: none;
+            border: 2px solid var(--primary);
+            opacity: 0.6; 
+            transition: border-color 0.5s;
+        }
+        .top-left { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+        .top-right { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+        .bottom-left { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+        .bottom-right { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
+        @media (max-width: 600px) {
+            #telemetry-panel {
+                top: 70px;
+                left: 10px;
+                font-size: 9px;
+                padding: 8px 10px;
+            }
+            #selector-bar { top: 15px; }
+            .persona-card { padding: 6px 12px; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div id="selector-bar">
+        <button class="persona-card active" onclick="selectPersona('jarvis')">J.A.R.V.I.S.</button>
+        <button class="persona-card" onclick="selectPersona('friday')">F.R.I.D.A.Y.</button>
+        <button class="persona-card" onclick="selectPersona('ultron')">U.L.T.R.O.N.</button>
+    </div>
+
+    <div id="telemetry-panel">
+        <div>CORE: <span id="tele-core">JARVIS_v4.2</span></div>
+        <div>STATUS: <span id="tele-status">SYNCHRONIZED</span></div>
+        <div>FPS: <span id="tele-fps">60</span> | LATENCY: <span id="tele-lat">12ms</span></div>
+        <div>LOAD: <span id="tele-load">14%</span> | TEMP: <span id="tele-temp">38°C</span></div>
+    </div>
+
+    <div class="hud-corner top-left"></div>
+    <div class="hud-corner top-right"></div>
+    <div class="hud-corner bottom-left"></div>
+    <div class="hud-corner bottom-right"></div>
+
+    <div id="ui-layer">
+        <div id="status-text">SYSTEM STANDBY</div>
+        <canvas id="eq-canvas" width="380" height="28"></canvas>
+        <div id="input-container">
+            <input type="text" id="text-input" placeholder="Initiate J.A.R.V.I.S. command..." autocomplete="off">
+            <button id="mic-btn" title="Voice Stream">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const PERSONAS = {
+            jarvis: {
+                key: "jarvis",
+                name: "JARVIS_v4.2",
+                primary: "#ffb700",
+                glow: "rgba(255,183,0,0.4)",
+                bg: "#0f1722",
+                colorVec: new THREE.Vector3(1.0, 0.65, 0.0),
+                placeholder: "Initiate J.A.R.V.I.S. command...",
+                displacementType: 0.0,
+                colorHex: 0xffb700,
+                ringSpeedMult: 1.2
+            },
+            friday: {
+                key: "friday",
+                name: "FRIDAY_v8.1",
+                primary: "#00f0ff",
+                glow: "rgba(0,240,255,0.4)",
+                bg: "#031424",
+                colorVec: new THREE.Vector3(0.0, 0.94, 1.0),
+                placeholder: "Boss, standing by for directive...",
+                displacementType: 1.0,
+                colorHex: 0x00f0ff,
+                ringSpeedMult: 2.5
+            },
+            ultron: {
+                key: "ultron",
+                name: "ULTRON_PRIME",
+                primary: "#ff002b",
+                glow: "rgba(255,0,43,0.4)",
+                bg: "#200204",
+                colorVec: new THREE.Vector3(1.0, 0.0, 0.15),
+                placeholder: "State your intent, human...",
+                displacementType: 2.0,
+                colorHex: 0xff002b,
+                ringSpeedMult: 6.0
+            }
+        };
+
+        let currentPersona = PERSONAS.jarvis;
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0f1722, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 6.5;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        const composer = new THREE.EffectComposer(renderer);
+        composer.addPass(new THREE.RenderPass(scene, camera));
+        const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.4, 0.08);
+        composer.addPass(bloomPass);
+
+        const dynamicCoreShader = {
+            vertexShader: `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                uniform float uTime;
+                uniform float uPulse;
+                uniform float uMode;
+
+                void main() {
+                    vUv = uv;
+                    vNormal = normalize(normalMatrix * normal);
+                    vec3 pos = position;
+
+                    if (uMode > 1.5) { // ULTRON (Aggressive Jagged Spikes)
+                        float spike = sin(pos.x * 20.0 + uTime * 8.0) * cos(pos.z * 20.0 + uTime * 6.0);
+                        pos += normal * spike * 0.045 * uPulse;
+                    } else if (uMode > 0.5) { // FRIDAY (Reduced Subtraction Scanning Wave)
+                        pos += normal * sin(pos.y * 16.0 + uTime * 5.0) * 0.008 * uPulse;
+                    } else { // JARVIS (Refined Concentric Orbital Ripple)
+                        float distFromEquator = abs(pos.y);
+                        float ripple = sin(distFromEquator * 18.0 - uTime * 4.5) * cos(atan(pos.z, pos.x) * 6.0 + uTime * 2.0);
+                        pos += normal * ripple * 0.038 * uPulse;
+                    }
+
+                    vPosition = (modelViewMatrix * vec4(pos, 1.0)).xyz;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec2 vUv;
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                uniform float uTime;
+                uniform float uPulse;
+                uniform float uMode;
+                uniform vec3 uColor;
+
+                void main() {
+                    vec3 viewDir = normalize(-vPosition);
+
+                    if (uMode > 1.5) { // ULTRON Shader
+                        float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 2.0);
+                        float scanline = pow(sin(vUv.y * 180.0 - uTime * 12.0) * 0.5 + 0.5, 5.0);
+                        float grid = clamp(step(0.94, fract(vUv.x * 48.0 + uTime * 0.3)) + step(0.94, fract(vUv.y * 48.0)), 0.0, 1.0);
+                        
+                        vec3 finalColor = mix(vec3(0.2, 0.0, 0.02), vec3(1.0, 0.0, 0.15), fresnel + grid * 0.7);
+                        finalColor = mix(finalColor, vec3(1.0, 0.45, 0.0), scanline * 0.5);
+                        float alpha = (fresnel * 0.95 + grid * 0.4 + scanline * 0.25) * uPulse;
+                        gl_FragColor = vec4(finalColor, alpha);
+
+                    } else if (uMode > 0.5) { // FRIDAY Shader
+                        float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 2.2);
+                        float grid = clamp(step(0.95, fract(vUv.x * 42.0 - uTime * 0.2)) + step(0.95, fract(vUv.y * 42.0)), 0.0, 1.0);
+                        float wave = pow(sin(vUv.y * 150.0 - uTime * 8.0) * 0.5 + 0.5, 4.0);
+
+                        vec3 finalColor = mix(vec3(0.0, 0.35, 0.9), vec3(0.0, 0.94, 1.0), fresnel + grid * 0.6);
+                        finalColor = mix(finalColor, vec3(0.8, 0.98, 1.0), wave * 0.4);
+                        float alpha = (fresnel * 0.9 + grid * 0.35 + wave * 0.2) * uPulse;
+                        gl_FragColor = vec4(finalColor, alpha);
+
+                    } else { // JARVIS Shader
+                        float fresnel = pow(1.0 - abs(dot(viewDir, vNormal)), 2.8);
+                        
+                        float grid1 = step(0.92, fract(vUv.x * 32.0 + uTime * 0.15));
+                        float grid2 = step(0.92, fract(vUv.y * 32.0 - uTime * 0.1));
+                        float polarGrid = clamp(grid1 + grid2, 0.0, 1.0);
+
+                        float pulseRing = pow(sin(vUv.y * 80.0 - uTime * 4.0) * 0.5 + 0.5, 3.0);
+
+                        vec3 colorGold  = vec3(1.0, 0.72, 0.0);
+                        vec3 colorAmber = vec3(0.85, 0.35, 0.0);
+                        vec3 colorCore  = vec3(1.0, 0.95, 0.6);
+
+                        vec3 finalColor = mix(colorAmber, colorGold, fresnel + polarGrid * 0.5);
+                        finalColor = mix(finalColor, colorCore, pulseRing * 0.45);
+
+                        float alpha = (fresnel * 0.95 + polarGrid * 0.4 + pulseRing * 0.2) * uPulse;
+                        gl_FragColor = vec4(finalColor, alpha);
+                    }
+                }
+            `
+        };
+
+        const coreMaterial = new THREE.ShaderMaterial({
+            vertexShader: dynamicCoreShader.vertexShader,
+            fragmentShader: dynamicCoreShader.fragmentShader,
+            uniforms: {
+                uTime: { value: 0 },
+                uPulse: { value: 1.0 },
+                uMode: { value: 0.0 },
+                uColor: { value: PERSONAS.jarvis.colorVec }
+            },
+            transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
+        });
+
+        const innerCore = new THREE.Mesh(new THREE.SphereGeometry(1.0, 64, 64), coreMaterial);
+        scene.add(innerCore);
+
+        const cageMaterial = new THREE.MeshBasicMaterial({ color: 0xffb700, wireframe: true, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending });
+        const outerCage = new THREE.Mesh(new THREE.IcosahedronGeometry(1.35, 4), cageMaterial);
+        scene.add(outerCage);
+
+        const ringGroup = new THREE.Group();
+        scene.add(ringGroup);
+
+        const ringShader = {
+            vertexShader: `
+                varying vec2 vUv;
+                void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+            `,
+            fragmentShader: `
+                varying vec2 vUv;
+                uniform float uTime;
+                uniform float uSpeed;
+                uniform float uDash;
+                uniform vec3 uColor;
+
+                void main() {
+                    float angle = atan(vUv.y - 0.5, vUv.x - 0.5);
+                    float arc = sin(angle * uDash + uTime * uSpeed) * 0.5 + 0.5;
+                    arc = pow(arc, 5.0);
+
+                    gl_FragColor = vec4(uColor, arc * 0.9);
+                }
+            `
+        };
+
+        const rings = [];
+        function addRing(radius, tube, dash, speed, rx, ry, rz) {
+            const ringGeo = new THREE.TorusGeometry(radius, tube, 16, 128);
+            const ringMat = new THREE.ShaderMaterial({
+                vertexShader: ringShader.vertexShader,
+                fragmentShader: ringShader.fragmentShader,
+                uniforms: { 
+                    uTime: { value: 0 }, 
+                    uSpeed: { value: speed }, 
+                    uDash: { value: dash },
+                    uColor: { value: PERSONAS.jarvis.colorVec }
+                },
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+            });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.set(rx, ry, rz);
+            ring.userData = { rx: rx, ry: ry, rz: rz, speed: speed };
+            ringGroup.add(ring);
+            rings.push(ring);
+        }
+
+        addRing(1.55, 0.008, 14.0,  2.2, Math.PI / 2, 0, 0);
+        addRing(1.75, 0.005, 20.0, -1.8, Math.PI / 3, Math.PI / 4, 0);
+        addRing(1.95, 0.004, 28.0,  2.8, Math.PI / 4, 0, Math.PI / 6);
+        addRing(2.15, 0.006, 10.0, -1.2, Math.PI / 1.8, Math.PI / 3, 0);
+        addRing(2.45, 0.003, 40.0,  1.4, 0, Math.PI / 2, 0);
+        addRing(2.75, 0.002, 52.0, -0.9, Math.PI / 2, Math.PI / 8, 0);
+
+        const pCount = 2000;
+        const bgParticleCount = Math.floor(pCount / 1.618);
+
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pCount * 3);
+        for (let i = 0; i < pCount; i++) {
+            const u = Math.random(); const v = Math.random();
+            const theta = u * 2.0 * Math.PI; const phi = Math.acos(2.0 * v - 1.0);
+            const r = 1.2 + Math.random() * 1.5;
+            pPos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+            pPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+            pPos[i*3+2] = r * Math.cos(phi);
+        }
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        const pMat = new THREE.PointsMaterial({ color: 0xffb700, size: 0.022, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+        const particles = new THREE.Points(pGeo, pMat);
+        scene.add(particles);
+
+        const bgParticleGeo = new THREE.BufferGeometry();
+        const bgPositions = new Float32Array(bgParticleCount * 3);
+        for (let i = 0; i < bgParticleCount; i++) {
+            bgPositions[i*3]     = (Math.random() - 0.5) * 32;
+            bgPositions[i*3+1]   = (Math.random() - 0.5) * 32;
+            bgPositions[i*3+2]   = (Math.random() - 0.5) * 22 - 4;
+        }
+        bgParticleGeo.setAttribute('position', new THREE.BufferAttribute(bgPositions, 3));
+        const bgParticleMat = new THREE.PointsMaterial({ color: 0xffb700, size: 0.028, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending });
+        const bgParticles = new THREE.Points(bgParticleGeo, bgParticleMat);
+        scene.add(bgParticles);
+
+        const coreLight = new THREE.PointLight(0xffb700, 1.2, 12);
+        scene.add(coreLight);
+
+        function selectPersona(key) {
+            currentPersona = PERSONAS[key];
+
+            document.documentElement.style.setProperty('--primary', currentPersona.primary);
+            document.documentElement.style.setProperty('--primary-glow', currentPersona.glow);
+            document.documentElement.style.setProperty('--bg-center', currentPersona.bg);
+
+            document.querySelectorAll('.persona-card').forEach(card => {
+                card.classList.toggle('active', card.textContent.toLowerCase().replace(/\./g, '') === key);
+            });
+
+            document.getElementById('tele-core').textContent = currentPersona.name;
+            document.getElementById('text-input').placeholder = currentPersona.placeholder;
+
+            coreMaterial.uniforms.uMode.value = currentPersona.displacementType;
+            coreMaterial.uniforms.uColor.value = currentPersona.colorVec;
+            cageMaterial.color.setHex(currentPersona.colorHex);
+            pMat.color.setHex(currentPersona.colorHex);
+            bgParticleMat.color.setHex(currentPersona.colorHex);
+            coreLight.color.setHex(currentPersona.colorHex);
+            scene.fog.color.setHex(currentPersona.displacementType === 2.0 ? 0x200204 : (currentPersona.displacementType === 1.0 ? 0x031424 : 0x0f1722));
+
+            rings.forEach((ring) => {
+                ring.material.uniforms.uColor.value = currentPersona.colorVec;
+            });
+        }
+
+        const eqCanvas = document.getElementById('eq-canvas');
+        const eqCtx = eqCanvas.getContext('2d');
+        let audioActive = false;
+
+        function drawEqualizer() {
+            eqCtx.clearRect(0, 0, eqCanvas.width, eqCanvas.height);
+            const w = eqCanvas.width;
+            const h = eqCanvas.height;
+            const midY = h / 2;
+            const t = Date.now() * 0.005;
+
+            if (currentPersona.key === 'jarvis') {
+                const bars = 26;
+                const barW = w / bars;
+
+                eqCtx.beginPath();
+                eqCtx.strokeStyle = currentPersona.primary;
+                eqCtx.lineWidth = 1.5;
+                eqCtx.shadowBlur = 8;
+                eqCtx.shadowColor = currentPersona.primary;
+
+                for (let x = 0; x <= w; x += 3) {
+                    const amp = audioActive ? 10 : 5;
+                    const y = midY + Math.sin(x * 0.04 + t * 2) * Math.cos(x * 0.015 + t) * amp;
+                    if (x === 0) eqCtx.moveTo(x, y);
+                    else eqCtx.lineTo(x, y);
+                }
+                eqCtx.stroke();
+
+                for (let i = 0; i < bars; i++) {
+                    const baseH = audioActive 
+                        ? Math.random() * (h - 6) + 4 
+                        : (Math.sin(t * 1.8 + i * 0.35) * 0.5 + 0.5) * (h - 10) + 3;
+                    const barX = i * barW + 2;
+                    
+                    eqCtx.fillStyle = currentPersona.primary;
+                    eqCtx.globalAlpha = 0.6;
+                    eqCtx.fillRect(barX, h - baseH, barW - 4, baseH);
+                    
+                    eqCtx.globalAlpha = 1.0;
+                    eqCtx.fillRect(barX, h - baseH - 2, barW - 4, 1.5);
+                }
+                eqCtx.shadowBlur = 0;
+
+            } else if (currentPersona.key === 'friday') {
+                eqCtx.shadowBlur = 10;
+                eqCtx.shadowColor = currentPersona.primary;
+
+                eqCtx.beginPath();
+                eqCtx.strokeStyle = currentPersona.primary;
+                eqCtx.lineWidth = 2;
+
+                for (let x = 0; x <= w; x += 2) {
+                    const amp = audioActive ? 12 : 6;
+                    const y = midY + Math.sin(x * 0.05 + t * 3.5) * Math.cos(x * 0.02 - t * 2) * amp;
+                    if (x === 0) eqCtx.moveTo(x, y);
+                    else eqCtx.lineTo(x, y);
+                }
+                eqCtx.stroke();
+
+                eqCtx.beginPath();
+                eqCtx.strokeStyle = "rgba(255, 255, 255, 0.7)";
+                eqCtx.lineWidth = 1;
+
+                for (let x = 0; x <= w; x += 3) {
+                    const amp2 = audioActive ? 8 : 4;
+                    const y2 = midY + Math.cos(x * 0.08 - t * 4) * Math.sin(x * 0.02 + t) * amp2;
+                    if (x === 0) eqCtx.moveTo(x, y2);
+                    else eqCtx.lineTo(x, y2);
+                }
+                eqCtx.stroke();
+
+                const nodeCount = 9;
+                for (let i = 0; i < nodeCount; i++) {
+                    const nx = (i / (nodeCount - 1)) * (w - 20) + 10;
+                    const ny = midY + Math.sin(nx * 0.05 + t * 3.5) * Math.cos(nx * 0.02 - t * 2) * (audioActive ? 12 : 6);
+                    eqCtx.fillStyle = "#ffffff";
+                    eqCtx.beginPath();
+                    eqCtx.arc(nx, ny, 2.2, 0, Math.PI * 2);
+                    eqCtx.fill();
+                }
+                eqCtx.shadowBlur = 0;
+
+            } else if (currentPersona.key === 'ultron') {
+                eqCtx.shadowBlur = 12;
+                eqCtx.shadowColor = currentPersona.primary;
+                eqCtx.lineWidth = 2;
+                eqCtx.strokeStyle = currentPersona.primary;
+
+                eqCtx.beginPath();
+                let cx = 0;
+                let cy = midY;
+                eqCtx.moveTo(cx, cy);
+
+                const steps = 22;
+                const stepWidth = w / steps;
+
+                for (let i = 0; i < steps; i++) {
+                    const glitchTrigger = Math.random() > 0.6;
+                    const amp = audioActive 
+                        ? (Math.random() * (h - 2) - midY) 
+                        : ((Math.random() - 0.5) * (h - 6));
+
+                    cx += stepWidth;
+                    eqCtx.lineTo(cx - stepWidth * 0.3, cy);
+                    cy = midY + (glitchTrigger ? amp * 1.3 : amp * 0.5);
+                    eqCtx.lineTo(cx - stepWidth * 0.1, cy);
+                    eqCtx.lineTo(cx, cy);
+                }
+                eqCtx.stroke();
+
+                if (Math.random() > 0.25) {
+                    eqCtx.fillStyle = "rgba(255, 0, 43, 0.85)";
+                    const burstCount = audioActive ? 14 : 6;
+                    for (let k = 0; k < burstCount; k++) {
+                        const gx = Math.random() * w;
+                        const gy = Math.random() * h;
+                        const gw = Math.random() * 14 + 2;
+                        const gh = Math.random() * 4 + 1;
+                        eqCtx.fillRect(gx, gy, gw, gh);
+                    }
+                }
+                eqCtx.shadowBlur = 0;
+            }
+        }
+
+        const micBtn = document.getElementById('mic-btn');
+        micBtn.addEventListener('click', () => {
+            audioActive = !audioActive;
+            document.getElementById('status-text').textContent = audioActive ? "AUDIO STREAM ANALYZING" : "SYSTEM STANDBY";
+        });
+
+        setInterval(() => {
+            document.getElementById('tele-fps').textContent = Math.floor(58 + Math.random() * 4);
+            document.getElementById('tele-lat').textContent = `${Math.floor(10 + Math.random() * 5)}ms`;
+            document.getElementById('tele-load').textContent = `${Math.floor(12 + Math.random() * 15)}%`;
+            document.getElementById('tele-temp').textContent = `${(37 + Math.random() * 2).toFixed(1)}°C`;
+        }, 1500);
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const t = clock.getElapsedTime();
+
+            coreMaterial.uniforms.uTime.value = t;
+
+            innerCore.rotation.y = t * 0.15;
+            outerCage.rotation.x = t * 0.12;
+            outerCage.rotation.y = t * 0.18;
+
+            particles.rotation.y = t * 0.06;
+            bgParticles.rotation.y = t * 0.015;
+
+            const speedMult = currentPersona.ringSpeedMult;
+            rings.forEach((ring) => {
+                ring.material.uniforms.uTime.value = t * speedMult;
+                ring.rotation.z += ring.userData.speed * 0.005 * speedMult;
+                ring.rotation.x += ring.userData.speed * 0.0025 * speedMult;
+                if (currentPersona.key === 'ultron') {
+                    ring.rotation.y += ring.userData.speed * 0.003 * speedMult;
+                }
+            });
+
+            drawEqualizer();
+            controls.update();
+            composer.render();
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
